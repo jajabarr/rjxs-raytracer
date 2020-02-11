@@ -1,0 +1,7 @@
+query GetAuthQuery {
+  auth @client {
+    __typename
+    id
+    valid
+  }
+}
