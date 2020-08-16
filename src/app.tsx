@@ -1,6 +1,6 @@
 import React from "react";
 import styles from "./app.module.scss";
-import { LayoutContext } from "components";
+import { LayoutContext } from "./components";
 const App = () => {
   return (
     <>
