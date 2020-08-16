@@ -1,7 +1,0 @@
-mutation SetAuthMutation($valid: Boolean!) {
-  auth(valid: $valid) @client {
-    __typename
-    id
-    valid
-  }
-}

@@ -1,6 +1,0 @@
-query GetBuildsQuery {
-  builds @client {
-    __typename
-    id
-  }
-}

@@ -1,6 +1,0 @@
-mutation AddBuildMutation($build: Build!) {
-  builds(build: $build) @client {
-    __typename
-    id
-  }
-}
