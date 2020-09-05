@@ -9,6 +9,7 @@
     "@testing-library/react": "^9.3.2",
     "@testing-library/user-event": "^7.1.2",
     "@types/jest": "^24.0.0",
+    "@types/lodash": "^4.14.159",
     "@types/node": "^12.0.0",
     "@types/react": "^16.9.0",
     "@types/react-dom": "^16.9.0",
@@ -18,10 +19,12 @@
     "graphql": "^14.6.0",
     "graphql-tag": "^2.10.3",
     "graphql.macro": "^1.4.2",
+    "lodash": "^4.17.20",
     "node-sass": "^4.13.1",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
     "react-scripts": "^3.4.1",
+    "rxjs": "^6.6.2",
     "typescript": "~3.7.2"
   },
   "scripts": {
