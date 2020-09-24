@@ -1,7 +1,7 @@
 import * as React from "react";
 import { fromEvent, Observable, merge } from "rxjs";
 import { map, filter, tap } from "rxjs/operators";
-import { useLayoutContext } from "..";
+import { useLayoutContext } from "../context";
 import { distinctUntilChangedUntil } from "./custom-operators";
 
 const between = (value: number, lhs: number, rhs: number) => {

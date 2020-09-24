@@ -1,24 +1,6 @@
 import { Observable } from "rxjs";
 import { map, distinctUntilChanged } from "rxjs/operators";
-
-const isObject = (data: any): data is object => typeof data === "object";
-
-const isValueEqual = <T extends object>(a: T, b: T) => {
-  const aValues = Object.values(a);
-  const bValues = Object.values(b);
-
-  if (aValues.length !== bValues.length) {
-    return false;
-  }
-
-  for (let i = 0; i < aValues.length; ++i) {
-    if (aValues[i] !== bValues[i]) {
-      return false;
-    }
-  }
-
-  return true;
-};
+import { isObject, isValueEqual } from "../common";
 
 export function distinctUntilChangedUntil<T>(
   timeout: number,

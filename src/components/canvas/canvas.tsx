@@ -1,5 +1,6 @@
 import * as React from "react";
-import { useLayoutContext } from "../";
+import { useLayoutContext } from "../../context";
+import { useMounted } from "../../hooks";
 
 const scaleCanvas = (
   canvas: HTMLCanvasElement,
@@ -53,6 +54,8 @@ export const Canvas: React.FC<ICanvasProps> = ({ children }) => {
     windowProperties: { heightPx, widthPx },
   } = useLayoutContext();
 
+  const isMounted = useMounted();
+
   const canvasRef = React.createRef<HTMLCanvasElement>();
 
   React.useEffect(() => {
@@ -64,6 +67,11 @@ export const Canvas: React.FC<ICanvasProps> = ({ children }) => {
     }
   }, [canvasRef, heightPx, widthPx]);
 
+  const memoizedChildren = React.useMemo(
+    () => (isMounted ? children(canvasRef) : null),
+    [children, canvasRef, isMounted]
+  );
+
   return (
     <>
       <canvas
@@ -74,7 +82,8 @@ export const Canvas: React.FC<ICanvasProps> = ({ children }) => {
         }}
         ref={canvasRef}
       />
-      {children(canvasRef)}
+
+      {memoizedChildren}
     </>
   );
 };

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { fromEvent, Observable, merge } from "rxjs";
-import { map, filter, tap, distinctUntilChanged } from "rxjs/operators";
-import { distinctUntilChangedUntil } from "./custom-operators";
+import { map, filter, distinctUntilChanged } from "rxjs/operators";
+import { isEqual } from "lodash";
 
 export enum Key {
   ArrowUp = "ArrowUp",
@@ -15,6 +15,7 @@ export enum Key {
   One = "1",
   Two = "2",
   Noop = "",
+  BracketLeft = "[",
 }
 
 export enum KeyStroke {
@@ -30,56 +31,52 @@ export interface IKeyboardEvent {
 
 export const useKeyboardEvent = () => {
   const downKeys = React.useRef<Key[]>([]);
-  const $keyUpEvent: Observable<{
-    key: Key;
-    keyStroke: KeyStroke;
-  }> = React.useMemo(
+  const $keyUpEvent: Observable<IKeyboardEvent> = React.useMemo(
     () =>
       fromEvent<KeyboardEvent>(document, "keyup").pipe(
         filter((event: KeyboardEvent) => {
           return !!Object.values(Key).find((v) => v === event.key);
         }),
-        map((event: KeyboardEvent) => ({
-          key: Object.values(Key).find((v) => v === event.key) as Key,
-          keyStroke: KeyStroke.Up,
-        })),
-        tap(({ key }) => {
-          downKeys.current = downKeys.current.filter((_key) => _key !== key);
+        map((event: KeyboardEvent) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const key = Object.values(Key).find((v) => v === event.key) as Key;
+          const keys = (downKeys.current = downKeys.current.filter(
+            (_key) => _key !== key
+          ));
+          return {
+            key,
+            keys,
+            keyStroke: KeyStroke.Up,
+          };
         })
       ),
     []
   );
-  const $keyDownEvent: Observable<{
-    key: Key;
-    keyStroke: KeyStroke;
-  }> = React.useMemo(
+  const $keyDownEvent: Observable<IKeyboardEvent> = React.useMemo(
     () =>
       fromEvent<KeyboardEvent>(document, "keydown").pipe(
         filter((event: KeyboardEvent) => {
           return !!Object.values(Key).find((v) => v === event.key);
         }),
-        map((event: KeyboardEvent) => ({
-          key: Object.values(Key).find((v) => v === event.key) as Key,
-          keyStroke: KeyStroke.Down,
-        })),
-        tap(({ key }) => {
+        map((event: KeyboardEvent) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const key = Object.values(Key).find((v) => v === event.key) as Key;
           if (downKeys.current.indexOf(key) === -1) {
             downKeys.current.push(key);
           }
+          return {
+            key,
+            keys: downKeys.current,
+            keyStroke: KeyStroke.Down,
+          };
         })
       ),
     []
   );
   const $keyboardEvent: Observable<IKeyboardEvent> = React.useMemo(
-    () =>
-      merge($keyUpEvent, $keyDownEvent).pipe(
-        distinctUntilChangedUntil(0),
-        map(({ key, keyStroke }) => ({
-          key,
-          keys: downKeys.current,
-          keyStroke,
-        }))
-      ),
+    () => merge($keyUpEvent, $keyDownEvent).pipe(distinctUntilChanged(isEqual)),
     [$keyUpEvent, $keyDownEvent]
   );
 

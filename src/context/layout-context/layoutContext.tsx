@@ -14,15 +14,32 @@ import {
 const shave = (value: number, unit: number) =>
   Math.floor(value) - (Math.floor(value) % unit);
 
-const _windowProperties = (unit?: number, square?: boolean, tiles?: number) => {
+const _windowProperties = (
+  anchor: DOMRect,
+  unit?: number,
+  square?: boolean,
+  tiles?: number
+) => {
+  // debugger;
   const now = performance.now();
   let _unit = unit || 1;
   let _tiles = tiles || 1;
+  let [h, w] = [anchor?.height, anchor?.width];
+  let properties = {
+    heightPx: 0,
+    widthPx: 0,
+    height: 0,
+    width: 0,
+    tiles: 0,
+    unit: 0,
+    anchor,
+  };
 
-  let [_heightPx, _widthPx] = [
-    shave(window.innerHeight * 0.9, _unit),
-    shave(window.innerWidth * 0.9, _unit),
-  ];
+  if (!h || !w) {
+    return properties;
+  }
+
+  let [_heightPx, _widthPx] = [shave(h * 0.9, _unit), shave(w * 0.9, _unit)];
 
   let [_height, _width] = [_heightPx, _widthPx];
 
@@ -31,35 +48,39 @@ const _windowProperties = (unit?: number, square?: boolean, tiles?: number) => {
   }
 
   if (tiles && !unit) {
-    return getWindowPropertiesFromTile(_heightPx, _widthPx, tiles);
+    return Object.assign(
+      properties,
+      getWindowPropertiesFromTile(_heightPx, _widthPx, tiles)
+    );
   }
 
   if (!tiles && unit) {
     _tiles = (_heightPx * _widthPx) / Math.pow(unit, 2);
-    return getWindowPropertiesFromTileAndUnit(
-      _heightPx,
-      _widthPx,
-      _tiles,
-      unit
+    return Object.assign(
+      properties,
+      getWindowPropertiesFromTileAndUnit(_heightPx, _widthPx, _tiles, unit)
     );
   }
 
   if (tiles && unit) {
-    return getWindowPropertiesFromTileAndUnit(_heightPx, _widthPx, tiles, unit);
+    return Object.assign(
+      properties,
+      getWindowPropertiesFromTileAndUnit(_heightPx, _widthPx, tiles, unit)
+    );
   }
 
   console.log(
     `WindowProperties performance mark: ${performance.now() - now} ms`
   );
 
-  return {
+  return Object.assign(properties, {
     heightPx: _heightPx,
     widthPx: _widthPx,
     height: _height,
     width: _width,
     tiles: _tiles,
     unit: _unit,
-  };
+  });
 };
 
 interface IWindowProperties {
@@ -69,6 +90,7 @@ interface IWindowProperties {
   width: number;
   tiles: number;
   unit: number;
+  anchor: DOMRect;
 }
 
 interface ILayoutContextProps {
@@ -77,16 +99,18 @@ interface ILayoutContextProps {
 
 interface ILayoutContextProviderProps {
   children: React.ReactChild | React.ReactChild[];
+  anchor: DOMRect;
   tiles?: number;
   unit?: number;
   square?: boolean;
 }
 
 const LayoutContext = React.createContext<ILayoutContextProps>({
-  windowProperties: _windowProperties(),
+  windowProperties: _windowProperties(new DOMRect()),
 });
 
 const useWindowObservable = ({
+  anchor,
   tiles,
   square,
   unit,
@@ -95,12 +119,12 @@ const useWindowObservable = ({
     return fromEvent(window, "resize").pipe(
       throttleTime(250),
       map(() => {
-        return _windowProperties(unit, square, tiles);
+        return _windowProperties(anchor, unit, square, tiles);
       }),
-      startWith(_windowProperties(unit, square, tiles)),
+      startWith(_windowProperties(anchor, unit, square, tiles)),
       distinctUntilChanged()
     );
-  }, [tiles, square, unit]);
+  }, [anchor, tiles, square, unit]);
 
 export const useLayoutContext = () => React.useContext(LayoutContext);
 
@@ -108,7 +132,7 @@ export const LayoutContextProvider: React.FunctionComponent<ILayoutContextProvid
   children,
   ...rest
 }) => {
-  const { unit, square, tiles } = rest;
+  const { anchor, unit, square, tiles } = rest;
 
   const $windowDimension: Observable<IWindowProperties> = useWindowObservable(
     rest
@@ -116,7 +140,7 @@ export const LayoutContextProvider: React.FunctionComponent<ILayoutContextProvid
 
   const [windowProperties, updateWindowProperties] = React.useState<
     IWindowProperties
-  >(_windowProperties(unit, square, tiles));
+  >(_windowProperties(anchor, unit, square, tiles));
 
   React.useLayoutEffect(() => {
     const _subscription = $windowDimension.subscribe(updateWindowProperties);
