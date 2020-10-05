@@ -1,3 +1,4 @@
 export { BaseMap, useMemoizedBaseMapRenderFn } from "./base-map";
 export { PlayerMap, useMemoizedPlayerMapRenderFn } from "./player-map";
-export { raytrace } from "./raytrace";
+export { WorldMap, useMemoizedWorldMapRenderFn } from "./3d-map"
+export { BackgroundMap, useMemoizedBackgroundMapRenderFn } from "./background-map";

@@ -5,20 +5,14 @@ import App from "./app";
 import { Anchor } from "./components";
 
 import * as serviceWorker from "./serviceWorker";
-import {
-  LayoutContextProvider,
-  MapContextProvider,
-  PlayerContextProvider,
-} from "./context";
+import { LayoutContextProvider, MapContextProvider } from "./context";
 
 ReactDOM.render(
   <Anchor style={{ height: "100vh", width: "100vw" }}>
     {(ref) => (
-      <LayoutContextProvider anchor={ref} tiles={121} square>
+      <LayoutContextProvider anchor={ref} tiles={17 ** 2} square>
         <MapContextProvider>
-          <PlayerContextProvider>
-            <App />
-          </PlayerContextProvider>
+          <App />
         </MapContextProvider>
       </LayoutContextProvider>
     )}

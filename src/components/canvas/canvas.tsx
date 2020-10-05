@@ -1,6 +1,6 @@
 import * as React from "react";
+import { IPosition } from "../../common";
 import { useLayoutContext } from "../../context";
-import { useMounted } from "../../hooks";
 
 const scaleCanvas = (
   canvas: HTMLCanvasElement,
@@ -43,33 +43,76 @@ const scaleCanvas = (
   context.scale(ratio, ratio);
 };
 
-export interface ICanvasProps {
-  children: (
-    canvas: React.RefObject<HTMLCanvasElement>
-  ) => React.ReactChild | React.ReactChild[];
+export type CanvasDrawFn = (
+  drawFn: (
+    context: CanvasRenderingContext2D
+  ) => [IPosition, IPosition] | undefined,
+  id?: string
+) => void;
+
+export interface ICanvasRenderProps {
+  canvas: HTMLCanvasElement;
+  canvasDrawFn: CanvasDrawFn;
 }
 
-export const Canvas: React.FC<ICanvasProps> = ({ children }) => {
+type CanvasChildRenderFn = (props: ICanvasRenderProps) => React.ReactNode;
+type CanvasNode = CanvasChildRenderFn | CanvasChildRenderFn[];
+export interface ICanvasProps {
+  children: CanvasNode;
+  id?: string;
+}
+
+export const Canvas: React.FC<ICanvasProps> = ({ children, id }) => {
   const {
     windowProperties: { heightPx, widthPx },
   } = useLayoutContext();
-
-  const isMounted = useMounted();
-
+  const [scaled, scale] = React.useState<boolean>(false);
   const canvasRef = React.createRef<HTMLCanvasElement>();
+  const prevRect = React.useRef<[IPosition, IPosition] | undefined>();
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
     const canvasCtx = canvas?.getContext("2d");
 
-    if (canvas && canvasCtx) {
+    if (!scaled && canvas && canvasCtx) {
       scaleCanvas(canvas, canvasCtx, widthPx, heightPx);
+      scale(() => true);
     }
-  }, [canvasRef, heightPx, widthPx]);
+  }, [canvasRef, heightPx, widthPx, scale, scaled]);
+
+  const draw: CanvasDrawFn = React.useCallback(
+    (canvasDrawFn, id) => {
+      const context = canvasRef?.current?.getContext("2d");
+
+      if (!context) {
+        return;
+      }
+
+      const prev = prevRect.current;
+
+      if (prev) {
+        const [begin, end] = prev;
+        const w = Math.ceil(Math.abs(end.x - begin.x)) * 1.1;
+        const h = Math.ceil(Math.abs(end.y - begin.y)) * 1.1;
+
+        // console.log(id, prev, w, h);
+        context.clearRect(Math.floor(begin.x), Math.floor(begin.y), w, h);
+      }
+
+      prevRect.current = canvasDrawFn(context);
+    },
+    [canvasRef]
+  );
 
   const memoizedChildren = React.useMemo(
-    () => (isMounted ? children(canvasRef) : null),
-    [children, canvasRef, isMounted]
+    () =>
+      scaled
+        ? (children as CanvasChildRenderFn)({
+            canvas: canvasRef.current as HTMLCanvasElement,
+            canvasDrawFn: draw,
+          })
+        : null,
+    [children, draw, scaled, canvasRef]
   );
 
   return (

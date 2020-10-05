@@ -23,7 +23,7 @@ const EventContext = React.createContext<IEventContext>({
 export const useEventContext = (): IEventContext =>
   React.useContext(EventContext);
 
-export const EventProvider: React.FC<IEventProvider> = React.memo(
+export const EventContextProvider: React.FC<IEventProvider> = React.memo(
   ({ children }) => {
     const divRef = React.createRef<HTMLDivElement>();
     const $mouseEvent: Observable<IMouseEvent> = useMouseEvents(divRef);

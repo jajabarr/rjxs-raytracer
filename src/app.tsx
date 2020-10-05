@@ -1,13 +1,17 @@
 import React from "react";
 import {
-  BaseMap,
   Canvas,
-  PlayerMap,
   useMemoizedBaseMapRenderFn,
+  useMemoizedBackgroundMapRenderFn,
   useMemoizedPlayerMapRenderFn,
+  useMemoizedWorldMapRenderFn,
 } from "./components";
-import { useLayoutContext } from "./context";
-import { EventProvider } from "./events/events";
+import { PlayerContextProvider, useLayoutContext } from "./context";
+import { EventContextProvider } from "./events";
+import {
+  AssetContextProvider,
+  useMemoizedAssetMapRenderFn,
+} from "./interactable";
 const App = () => {
   const {
     windowProperties: { heightPx, widthPx },
@@ -15,6 +19,9 @@ const App = () => {
 
   const BaseMapRenderFn = useMemoizedBaseMapRenderFn();
   const PlayerMapRenderFn = useMemoizedPlayerMapRenderFn();
+  const WorldMapRenderFn = useMemoizedWorldMapRenderFn();
+  const BackgroundMapRenderFn = useMemoizedBackgroundMapRenderFn();
+  const AssetMapRenderFn = useMemoizedAssetMapRenderFn();
 
   return (
     <div
@@ -40,10 +47,17 @@ const App = () => {
           border: "1px solid red",
         }}
       >
-        <EventProvider>
-          <Canvas>{BaseMapRenderFn}</Canvas>
-          <Canvas>{PlayerMapRenderFn}</Canvas>
-        </EventProvider>
+        <EventContextProvider>
+          <PlayerContextProvider>
+            <AssetContextProvider>
+              {/* <Canvas id="baseMap">{BaseMapRenderFn}</Canvas> */}
+              <Canvas id="floorMap">{BackgroundMapRenderFn}</Canvas>
+              <Canvas id="playerMap">{PlayerMapRenderFn}</Canvas>
+              <Canvas id="worldMap">{WorldMapRenderFn}</Canvas>
+              <Canvas id="assetMap">{AssetMapRenderFn}</Canvas>
+            </AssetContextProvider>
+          </PlayerContextProvider>
+        </EventContextProvider>
       </div>
     </div>
   );

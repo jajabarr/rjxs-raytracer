@@ -1,62 +1,64 @@
+/* eslint-disable no-fallthrough */
 import * as React from "react";
-import { Observable } from "rxjs";
-import { distinctUntilChanged, map } from "rxjs/operators";
+import { EMPTY, Observable } from "rxjs";
+import { map, startWith, switchMap, tap } from "rxjs/operators";
 import { IPosition } from "../../common/interfaces";
 import { useLayoutContext, useMapContext } from "..";
 import { Key, useEventContext } from "../../events";
-import { isValueEqual } from "../../common";
-
-const getPlayerEyeCenter = (position: IPosition, size: number) => {
-  const eyeCenter = { ...position };
-  eyeCenter.x = eyeCenter.x + Math.floor(size / 2);
-  eyeCenter.y = eyeCenter.y + Math.floor(size / 2);
-
-  return eyeCenter;
-};
+import { getRotationAdjustedPosition } from "../../common";
 
 const updatePosition = (
   position: IPosition,
-  key: React.Key,
+  key: Key,
+  rotation: number,
   speed: number
 ): IPosition => {
-  const { x, y } = position;
-
-  speed = Math.floor(speed);
+  let adjustedRotation = rotation;
 
   switch (key) {
     case Key.W:
-      return { x, y: y - speed };
+      break;
     case Key.A:
-      return { x: x - speed, y };
-    case Key.D:
-      return { x: x + speed, y: y };
+      adjustedRotation += 90;
+      break;
     case Key.S:
-      return { x, y: y + speed };
+      adjustedRotation += 180;
+      break;
+    case Key.D:
+      adjustedRotation += 270;
+      break;
+    default:
+      return position;
   }
 
-  return position;
+  return getRotationAdjustedPosition(position, adjustedRotation, speed);
 };
 
 const nextValidPosition = (
   src: IPosition,
   speed: number,
-  directions: React.Key[],
+  directions: Key[],
+  rotation: number,
   size: number,
-  testFn: (position: IPosition, speed: number) => boolean
+  testFn: (
+    position: IPosition,
+    size: number,
+    __debug_owner__?: string
+  ) => boolean
 ): IPosition => {
   let dst = { ...src };
 
   directions.forEach((dir) => {
-    dst = updatePosition(dst, dir, speed);
+    dst = updatePosition(dst, dir, rotation, speed);
   });
 
-  if (!testFn(dst, size)) {
+  if (!testFn(dst, size, "playerContext")) {
     dst = { ...src };
     directions.forEach((dir) => {
-      dst = updatePosition(dst, dir, 1 /* speed */);
+      dst = updatePosition(dst, dir, rotation, 1 /* speed */);
     });
 
-    if (!testFn(dst, size)) {
+    if (!testFn(dst, size, "playerContext")) {
       dst = { ...src };
     }
   }
@@ -85,11 +87,9 @@ const updateViewRotation = (
   return (srcRotation += rotation);
 };
 
-export type PlayerMovementState = "active" | "idle";
 export interface IPlayerMovementEvent {
   position: IPosition;
   rotation: number;
-  state: PlayerMovementState;
 }
 
 export interface PlayerAttributes {
@@ -114,27 +114,28 @@ interface IPlayerContextProvider {
 export const PlayerContextProvider: React.FC<IPlayerContextProvider> = ({
   children,
 }) => {
-  const { $keyboardEvent } = useEventContext();
+  const { $keyboardEvent, $animationEvent } = useEventContext();
   const {
     windowProperties: { unit, heightPx, widthPx },
   } = useLayoutContext();
   const { unitInMap } = useMapContext();
   const playerSize = React.useRef<number>(Math.floor(Math.sqrt(unit)));
-  const moveSpeed = React.useRef<number>(0.5);
-  const rotationSpeed = React.useRef<number>(5);
+  const moveSpeed = React.useRef<number>(0.3);
+  const rotationSpeed = React.useRef<number>(3);
   const playerPosition = React.useRef<IPosition>({
     x: Math.floor(widthPx / 2),
     y: Math.floor(heightPx / 2),
   });
   const playerRotation = React.useRef<number>(180);
-  const playerMovementState = React.useRef<PlayerMovementState>("idle");
+  const keysRef = React.useRef<Key[]>([]);
 
   const updatePlayerPosition = React.useCallback(
     (directions: Key[]) =>
       nextValidPosition(
         playerPosition.current,
-        moveSpeed.current,
+        moveSpeed.current * playerSize.current,
         directions,
+        playerRotation.current,
         playerSize.current,
         unitInMap
       ),
@@ -154,20 +155,37 @@ export const PlayerContextProvider: React.FC<IPlayerContextProvider> = ({
   const $playerMovementEvent: Observable<IPlayerMovementEvent> = React.useMemo(
     () =>
       $keyboardEvent.pipe(
-        map(({ keys }) => {
-          playerPosition.current = updatePlayerPosition(keys);
-          playerRotation.current = updatePlayerRotation(keys);
-          playerMovementState.current = keys.length > 0 ? "active" : "idle";
+        tap(({ keys }) => (keysRef.current = keys)),
+        switchMap(() => {
+          if (keysRef.current.length > 0) {
+            return $animationEvent;
+          } else {
+            return EMPTY;
+          }
+        }),
+        map(() => {
+          if (keysRef.current.length > 0) {
+            playerRotation.current = updatePlayerRotation(keysRef.current);
+            playerPosition.current = updatePlayerPosition(keysRef.current);
+          }
 
           return {
             position: playerPosition.current,
             rotation: playerRotation.current,
-            state: playerMovementState.current,
           };
         }),
-        distinctUntilChanged(isValueEqual)
+
+        startWith({
+          position: playerPosition.current,
+          rotation: playerRotation.current,
+        })
       ),
-    [$keyboardEvent, updatePlayerPosition, updatePlayerRotation]
+    [
+      $keyboardEvent,
+      $animationEvent,
+      updatePlayerPosition,
+      updatePlayerRotation,
+    ]
   );
 
   return (

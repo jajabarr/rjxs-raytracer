@@ -9,9 +9,10 @@ import {
   useMouseEventSubscription,
 } from "../../events";
 import map from "./map.json";
-import { IBaseMapProps } from "./interfaces";
+import { IBaseMapProps } from "../../common";
 import { animationFrameScheduler } from "rxjs";
 import { IPosition } from "../../common";
+import { ICanvasRenderProps } from "../canvas/canvas";
 
 const downloadJson = (value: string) => {
   const data = new Blob([value], { type: "text/json" });
@@ -30,67 +31,66 @@ const getTilePosition = (position: string): IPosition => {
   return { x: +x, y: +y };
 };
 
-export const BaseMap: React.FC<IBaseMapProps> = React.memo(({ canvas }) => {
-  const { $mouseEvent, $keyboardEvent } = useEventContext();
-  const {
-    windowProperties: { unit },
-  } = useLayoutContext();
+export const BaseMap: React.FC<IBaseMapProps> = React.memo(
+  ({ canvasDrawFn }) => {
+    const { $mouseEvent, $keyboardEvent } = useEventContext();
+    const {
+      windowProperties: { unit, heightPx, widthPx },
+    } = useLayoutContext();
 
-  const color = React.useRef<string>("black");
-  const tileRef = React.useRef<{ [key: string]: boolean }>({});
-  const setColor = React.useCallback((keyboardEvent: IKeyboardEvent) => {
-    if (keyboardEvent.key === Key.One) {
-      color.current = "black";
-    } else if (keyboardEvent.key === Key.Two) {
-      color.current = "clear";
-    } else if (keyboardEvent.key === Key.BracketLeft) {
-      const tiles: string[] = [];
-      for (const [k, v] of Object.entries(tileRef.current)) {
-        if (v) {
-          tiles.push(k);
+    const color = React.useRef<string>("black");
+    const tileRef = React.useRef<{ [key: string]: boolean }>({});
+    const setColor = React.useCallback((keyboardEvent: IKeyboardEvent) => {
+      if (keyboardEvent.key === Key.One) {
+        color.current = "black";
+      } else if (keyboardEvent.key === Key.Two) {
+        color.current = "clear";
+      } else if (keyboardEvent.key === Key.BracketLeft) {
+        const tiles: string[] = [];
+        for (const [k, v] of Object.entries(tileRef.current)) {
+          if (v) {
+            tiles.push(k);
+          }
         }
+        downloadJson(JSON.stringify(tiles));
       }
-      downloadJson(JSON.stringify(tiles));
-    }
-  }, []);
+    }, []);
 
-  const writeColor = React.useCallback(
-    (event: IMouseEvent) => {
-      const { x, y } = event;
-      const context = canvas.current?.getContext("2d");
+    const writeColor = React.useCallback(
+      (event: IMouseEvent) => {
+        canvasDrawFn((context: CanvasRenderingContext2D) => {
+          const { x, y } = event;
+          context.fillStyle = color.current;
+          if (color.current === "clear") {
+            // context.clearRect(x * unit, y * unit, unit, unit);
+            tileRef.current[getTileKey({ x, y })] = false;
+          } else {
+            tileRef.current[getTileKey({ x, y })] = true;
+            context.fillRect(x * unit, y * unit, unit, unit);
+          }
 
-      if (!context) {
-        return;
-      }
+          return [
+            { x: 0, y: 0 },
+            { x: widthPx, y: heightPx },
+          ];
+        });
+      },
+      [unit, widthPx, heightPx, canvasDrawFn]
+    );
 
-      context.fillStyle = color.current;
-      // console.log("fill", x * unit, y * unit, unit, unit);
-      if (color.current === "clear") {
-        context.clearRect(x * unit, y * unit, unit, unit);
-        tileRef.current[getTileKey({ x, y })] = false;
-      } else {
-        tileRef.current[getTileKey({ x, y })] = true;
-        context.fillRect(x * unit, y * unit, unit, unit);
-      }
-    },
-    [unit, canvas]
-  );
+    React.useEffect(() => {
+      console.log("map", map);
+      animationFrameScheduler.schedule(() => {
+        map.forEach((v) => writeColor(getTilePosition(v)));
+      });
+    }, [writeColor]);
 
-  React.useEffect(() => {
-    console.log("map", map);
-    animationFrameScheduler.schedule(() => {
-      map.forEach((v) => writeColor(getTilePosition(v)));
-    });
-  }, [writeColor]);
+    useKeyboardEventSubscription($keyboardEvent, setColor);
+    useMouseEventSubscription($mouseEvent, writeColor);
 
-  useKeyboardEventSubscription($keyboardEvent, setColor);
-  useMouseEventSubscription($mouseEvent, writeColor);
-
-  return null;
-});
+    return null;
+  }
+);
 
 export const useMemoizedBaseMapRenderFn = () =>
-  React.useCallback(
-    (canvas: React.RefObject<HTMLCanvasElement>) => <BaseMap canvas={canvas} />,
-    []
-  );
+  React.useCallback((props: ICanvasRenderProps) => <BaseMap {...props} />, []);
