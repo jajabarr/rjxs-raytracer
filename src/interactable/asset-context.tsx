@@ -43,7 +43,7 @@ export const ASSETS: {
 } = {
   portal: {
     asset: "portal",
-    position: { x: 10, y: 10 },
+    position: { x: 75, y: 75 },
     w: 50,
     h: 50,
   },
